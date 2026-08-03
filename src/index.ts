@@ -1,17 +1,24 @@
 import express from "express";
 import dotenv from "dotenv";
 import multer from "multer";
-import {  GoogleGenAI } from "@google/genai";
+import "dotenv/config";
+import { GoogleGenAI } from "@google/genai";
+import fs from "fs";
+
+
 dotenv.config({
     path: "./.env"
 });
 
-if (!process.env.GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY is not defined in the environment variables.");
+if (!process.env.GEMINI_API_KEY ) {
+    throw new Error("One or more required environment variables are not defined. or ffmpeg path is not defined");
 }
+
+
 const ai = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY!,
+    apiKey: process.env.GEMINI_API_KEY,
 });
+
 
 console.log("Gemini API Key: ", process.env.GEMINI_API_KEY);
 
@@ -41,16 +48,67 @@ app.get("/", (req: express.Request, res: express.Response) => {
 app.post("/transcribe", upload.single("video"), async (req: express.Request, res: express.Response) => {
     try{
 
-        const {title} = await req.body;
-        console.log("Title: ", title);
+        if (!req.file) {
+            return res.status(400).json({
+                error: "No video file uploaded",
+            });
+        }   
 
-        const videoFile = await req.file;
+        const videoPath = await req.file.path;
+        const file = await ai.files.upload({
+            file: videoPath,
+            config: {
+                mimeType: req.file.mimetype,
+            },
+        });
 
-        console.log("Video File: ", videoFile);
+        let processedFile = await ai.files.get({
+            name: file.name!,
+        });
+
+        while (processedFile.state === "PROCESSING") {
+            await new Promise(resolve => setTimeout(resolve, 5000));
+
+            processedFile = await ai.files.get({
+                name: file.name!,
+            });
+        }
+
+        if (processedFile.state === "FAILED") {
+            throw new Error("Gemini video processing failed");
+        }
+
+        // Ask Gemini to transcribe in English
+        const response = await ai.models.generateContent({
+            model: "gemini-3.6-flash",
+            contents: [
+                {
+                    fileData: {
+                        fileUri: processedFile.uri!,
+                        mimeType: processedFile.mimeType!,
+                    },
+                },
+                {
+                    text: `
+            Transcribe all spoken content in this video.
+
+            Requirements:
+            - Return the transcript in English.
+            - If the speakers are speaking another language,
+              translate their speech into English.
+            - Do not summarize.
+            - Preserve the meaning of the original speech.
+            - Add punctuation.
+            - Separate speakers when you can identify them.
+          `,
+                },
+            ],
+        });
 
         res.json({
-            message: "Video uploaded successfully",
+            transcript: response.text,
         });
+
     }catch (error) {
         res.end((error as Error).message);
     }
