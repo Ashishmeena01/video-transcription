@@ -8,10 +8,7 @@ const authMiddleware = async (
 ) => {
   try {
     const authorization = await req.headers.authorization;
-    console.log("authorization would be",authorization);
 
-    console.log("\n")
-    console.log("headers would be",req.headers)
 
     if (!authorization) {
       return res.status(401).json({
