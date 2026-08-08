@@ -86,8 +86,6 @@ aiRouter.post("/chat", async (req: express.Request, res: express.Response) => {
             });
         }
 
-        console.log("req body: ", bd);
-
         const Message = bd.message;
 
         if (!Message || typeof Message !== "string") {
