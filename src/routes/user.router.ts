@@ -67,7 +67,7 @@ userRouter.get("/login-google", (req, res) => {
     "state",
     "RANDOM_STATE"
   );
-
+  console.log("redirecting the user to the google")
   return res.redirect(authURL.toString());
 });
 
@@ -152,7 +152,7 @@ userRouter.get(
         {
           method: "GET",
           headers: {
-            Authorization: `Bearer ${ googleTokens.access_token } `,
+            Authorization: `Bearer ${googleTokens.access_token}`,
           },
         }
       );
@@ -210,9 +210,6 @@ userRouter.get(
       );
 
 
-      console.log("\n refreshToken and accesToken are respectively",refreshToken,"\n",accessToken);
-      console.log("\n\n");
-
       /*
        * Store refresh token in an HttpOnly cookie.
        */
@@ -226,20 +223,24 @@ userRouter.get(
       });
 
       /*
-       * Return the access token to the frontend.
+       * Redirect back to the SPA with the access token and user payload.
        */
-      return res.status(200).json({
-        message: "Login successful",
+      const frontendUrl =
+        process.env.FRONTEND_URL || "http://localhost:5173";
+      const redirectUrl = new URL(`${frontendUrl}/auth/callback`);
 
-        user: {
+      redirectUrl.searchParams.set("accessToken", accessToken);
+      redirectUrl.searchParams.set(
+        "user",
+        JSON.stringify({
           id: user.id,
           name: user.name,
           email: user.email,
           profilePicture: user.profilePicture,
-        },
-
-        accessToken,
-      });
+        })
+      );
+      console.log("redirecting the user to frontend")
+      return res.redirect(redirectUrl.toString());
     } catch (error) {
       console.error(
         "Google authentication error:",

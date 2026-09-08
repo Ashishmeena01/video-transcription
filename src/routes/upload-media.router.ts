@@ -17,13 +17,17 @@ uploadMediaRouter.get("/signature", (req: express.Request, res: express.Response
             process.env.CLOUDINARY_API_SECRET!
         );
 
-        res.json({
+        const rsp = {
             timestamp,
             signature,
             folder,
             cloudName: process.env.CLOUDINARY_CLOUD_NAME,
             apiKey: process.env.CLOUDINARY_API_KEY,
-        });
+        };
+        
+        console.log("rsp is :" ,rsp);
+
+        res.json(rsp);
     } catch (error) {
         console.error(error);
 

@@ -5,37 +5,13 @@ import {upload,ai} from "../utils/index.js";
 const aiRouter = express.Router();
 
 
-aiRouter.post("/transcribe", upload.single("video"), async (req: express.Request, res: express.Response) => {
+aiRouter.post("/transcribe", async (req: express.Request, res: express.Response) => {
     try {
-
-        if (!req.file) {
+        const bd = await req.body;
+        if (!bd.transcribeUrl || typeof bd.transcribeUrl !== "string") {
             return res.status(400).json({
-                error: "No video file uploaded",
+                error: "Invalid video URL",
             });
-        }
-
-        const videoPath = await req.file.path;
-        const file = await ai.files.upload({
-            file: videoPath,
-            config: {
-                mimeType: req.file.mimetype,
-            },
-        });
-
-        let processedFile = await ai.files.get({
-            name: file.name!,
-        });
-
-        while (processedFile.state === "PROCESSING") {
-            await new Promise(resolve => setTimeout(resolve, 5000));
-
-            processedFile = await ai.files.get({
-                name: file.name!,
-            });
-        }
-
-        if (processedFile.state === "FAILED") {
-            throw new Error("Gemini video processing failed");
         }
 
         // Ask Gemini to transcribe in English
@@ -44,8 +20,8 @@ aiRouter.post("/transcribe", upload.single("video"), async (req: express.Request
             contents: [
                 {
                     fileData: {
-                        fileUri: processedFile.uri!,
-                        mimeType: processedFile.mimeType!,
+                        fileUri: bd.transcribeUrl,
+                        mimeType: "video/mp4",
                     },
                 },
                 {
@@ -71,6 +47,8 @@ aiRouter.post("/transcribe", upload.single("video"), async (req: express.Request
 
     } catch (error) {
         res.end((error as Error).message);
+    }finally{
+        console.log("Transcription request completed.");
     }
 });
 

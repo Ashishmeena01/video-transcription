@@ -1,4 +1,6 @@
 import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
 import userRouter from "./user.router.js";
 import aiRouter from "./ai.router.js";
 import prisma from "../lib/db.js";
@@ -10,7 +12,15 @@ const app = express();
 const protectedRouter = express.Router();
 const publicRouter = express.Router();
 
+const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 
+app.use(
+    cors({
+        origin: frontendUrl,
+        credentials: true,
+    })
+);
+app.use(cookieParser());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
@@ -94,6 +104,8 @@ publicRouter.get("/health", (req: express.Request, res: express.Response) => {
 protectedRouter.use(
     authMiddleware
 )
+
+
 
 app.use("/", publicRouter);
 app.use("/", protectedRouter);
