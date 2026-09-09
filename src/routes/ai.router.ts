@@ -1,91 +1,163 @@
 import express from "express";
-import {upload,ai} from "../utils/index.js";
-
+import { ai } from "../utils/index.js";
+import downloadVideoFromCloudinary from "../utils/video-downloader.js";
+import path from "path";
+import fs from "fs/promises";
 
 const aiRouter = express.Router();
 
+const downloadPath =
+    "C:/Users/ashis/OneDrive/Desktop/video-transcription/backend/downloads";
 
-aiRouter.post("/transcribe", async (req: express.Request, res: express.Response) => {
-    try {
-        const bd = await req.body;
-        if (!bd.transcribeUrl || typeof bd.transcribeUrl !== "string") {
-            return res.status(400).json({
-                error: "Invalid video URL",
+aiRouter.post(
+    "/transcribe",
+    async (req: express.Request, res: express.Response) => {
+        let localVideoPath: string | null = null;
+
+        try {
+            const { transcribeUrl } = req.body;
+
+            if (!transcribeUrl || typeof transcribeUrl !== "string") {
+                return res.status(400).json({
+                    error: "Invalid video URL",
+                });
+            }
+
+            // --------------------------------
+            // 1. Get filename from Cloudinary URL
+            // --------------------------------
+
+            const url = new URL(transcribeUrl);
+
+            let filename = path.basename(url.pathname);
+
+            // Remove extension if it already exists
+            filename = filename.replace(/\.[^/.]+$/, "");
+
+            filename += ".mp4";
+
+            // --------------------------------
+            // 2. Create download directory
+            // --------------------------------
+
+            await fs.mkdir(downloadPath, {
+                recursive: true,
             });
-        }
 
-        // Ask Gemini to transcribe in English
-        const response = await ai.models.generateContent({
-            model: "gemini-3.6-flash",
-            contents: [
-                {
-                    fileData: {
-                        fileUri: bd.transcribeUrl,
-                        mimeType: "video/mp4",
-                    },
+            localVideoPath = path.join(
+                downloadPath,
+                filename
+            );
+
+            // --------------------------------
+            // 3. Download video from Cloudinary
+            // --------------------------------
+
+            await downloadVideoFromCloudinary(
+                transcribeUrl,
+            );
+
+            console.log(
+                "Video downloaded:",
+                localVideoPath
+            );
+
+            // --------------------------------
+            // 4. Upload video to Gemini
+            // --------------------------------
+
+            const uploadedFile = await ai.files.upload({
+                file: localVideoPath,
+                config: {
+                    mimeType: "video/mp4",
                 },
-                {
-                    text: `
-                        Transcribe all spoken content in this video.
-
-                        Requirements:
-                        - Return the transcript in English.
-                        - If the speakers are speaking another language,
-                        translate their speech into English.
-                        - Do not summarize.
-                        - Preserve the meaning of the original speech.
-                        - Add punctuation.
-                        - Separate speakers when you can identify them.
-                    `,
-                },
-            ],
-        });
-
-        res.json({
-            transcript: response.text,
-        });
-
-    } catch (error) {
-        res.end((error as Error).message);
-    }finally{
-        console.log("Transcription request completed.");
-    }
-});
-
-
-aiRouter.post("/chat", async (req: express.Request, res: express.Response) => {
-    try {
-
-        const bd = await req.body;
-
-        if (!bd || typeof bd !== "object") {
-            return res.status(400).json({
-                error: "Invalid request body",
             });
-        }
 
-        const Message = bd.message;
+            console.log(
+                "Uploaded to Gemini:",
+                uploadedFile.uri
+            );
 
-        if (!Message || typeof Message !== "string") {
-            return res.status(400).json({
-                error: "Invalid message format",
+            // --------------------------------
+            // 5. Generate transcript
+            // --------------------------------
+
+            const response =
+                await ai.models.generateContent({
+                    model: "gemini-3.6-flash",
+
+                    contents: [
+                        {
+                            fileData: {
+                                fileUri: uploadedFile.uri,
+                                mimeType:
+                                    uploadedFile.mimeType ??
+                                    "video/mp4",
+                            },
+                        },
+
+                        {
+                            text: `
+Transcribe all spoken content in this video.
+
+Requirements:
+- Return the transcript in English.
+- If the speakers are speaking another language,
+  translate their speech into English.
+- Do not summarize.
+- Preserve the meaning of the original speech.
+- Add punctuation.
+- Separate speakers when you can identify them.
+              `,
+                        },
+                    ],
+                });
+
+            // --------------------------------
+            // 6. Return transcript
+            // --------------------------------
+            console.log(response);
+            return res.json({
+                transcript: response.text,
             });
+        } catch (error) {
+            console.error(
+                "Transcription failed:",
+                error
+            );
+
+            return res.status(500).json({
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : "Transcription failed",
+            });
+        } finally {
+            // --------------------------------
+            // 7. Delete local video
+            // --------------------------------
+
+            if (localVideoPath) {
+                try {
+                    await fs.unlink(localVideoPath);
+
+                    console.log(
+                        "Local video deleted:",
+                        localVideoPath
+                    );
+                } catch (error) {
+                    console.error(
+                        "Failed to delete local video:",
+                        error
+                    );
+                }
+            }
+
+            console.log(
+                "Transcription request completed."
+            );
         }
-
-        const response = await ai.models.generateContent({
-            model: "gemini-3.6-flash",
-            contents: Message,
-        });
-
-        res.json({
-            response: response.text,
-        });
-    } catch (error) {
-        res.status(500).json({
-            error: "Gemini request failed",
-        });
     }
-});
-
+);
 
 export default aiRouter;

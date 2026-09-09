@@ -1,14 +1,16 @@
 import type { Request, Response, NextFunction } from "express";
-import { verifyToken } from "../utils/jwt.js";
+import {
+  verifyToken,
+  generateAccessToken,
+} from "../utils/jwt.js";
 
-const authMiddleware = async (
+const authMiddleware = (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const authorization = await req.headers.authorization;
-
+    const authorization = req.headers.authorization;
 
     if (!authorization) {
       return res.status(401).json({
@@ -30,9 +32,9 @@ const authMiddleware = async (
       });
     }
 
-    const secret = process.env.ACCESS_TOKEN_SECRET;
+    const accessSecret = process.env.ACCESS_TOKEN_SECRET;
 
-    if (!secret) {
+    if (!accessSecret) {
       console.error("ACCESS_TOKEN_SECRET is not configured");
 
       return res.status(500).json({
@@ -40,19 +42,83 @@ const authMiddleware = async (
       });
     }
 
-    const payload = verifyToken(
+    // -----------------------------
+    // 1. Verify access token
+    // -----------------------------
+
+    const accessPayload = verifyToken(
       accessToken,
-      secret,
+      accessSecret,
       "access"
     );
 
-    if (!payload) {
+    if (accessPayload) {
+      req.user = accessPayload;
+      return next();
+    }
+
+    // -----------------------------
+    // 2. Access token invalid/expired
+    // -----------------------------
+
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) {
       return res.status(401).json({
-        message: "Invalid or expired access token",
+        message: "Refresh token is missing",
       });
     }
 
-    req.user = payload;
+    const refreshSecret = process.env.REFRESH_TOKEN_SECRET;
+
+    if (!refreshSecret) {
+      console.error("REFRESH_TOKEN_SECRET is not configured");
+
+      return res.status(500).json({
+        message: "Internal server error",
+      });
+    }
+
+    // -----------------------------
+    // 3. Verify refresh token
+    // -----------------------------
+
+    const refreshPayload = verifyToken(
+      refreshToken,
+      refreshSecret,
+      "refresh"
+    );
+
+    if (!refreshPayload) {
+      return res.status(401).json({
+        message: "Invalid or expired refresh token",
+      });
+    }
+
+    // -----------------------------
+    // 4. Generate new access token
+    // -----------------------------
+
+    const newAccessToken = generateAccessToken(
+       refreshPayload.userId,
+       refreshPayload.email,
+       accessSecret
+    );
+
+    // -----------------------------
+    // 5. Put new token in response
+    // -----------------------------
+
+    res.setHeader(
+      "X-Access-Token",
+      newAccessToken
+    );
+
+    // -----------------------------
+    // 6. Continue request
+    // -----------------------------
+
+    req.user = refreshPayload;
 
     next();
   } catch (error) {
