@@ -4,7 +4,7 @@ import downloadVideoFromCloudinary from "../utils/video-downloader.js";
 import path from "path";
 import fs from "fs/promises";
 
-const aiRouter = express.Router();
+const   aiRouter = express.Router();
 
 const downloadPath =
     "C:/Users/ashis/OneDrive/Desktop/video-transcription/backend/downloads";
@@ -163,8 +163,28 @@ Requirements:
 aiRouter.post('/chat',async (req: express.Request, res: express.Response) => {
     try{
         const { chat } = await req.body;
-        console.log(chat);
-        res.end("Chat received");
+
+        if(!chat){
+            res.end("no message there").status(400);
+        }
+
+        const response = await ai.models.generateContent({
+            model: "gemini-3.6-flash",
+
+            contents: [
+                {
+                    text:chat,
+                },
+                {
+                    text: `
+                    your are a chatbot you just need to response to the message of user
+              `,
+                },
+            ],
+        })
+        console.log(response.text);
+
+        res.end(response.text);
     }catch(error){
         res.status(404).json("error");
     }
