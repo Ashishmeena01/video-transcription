@@ -160,4 +160,14 @@ Requirements:
     }
 );
 
+aiRouter.post('/chat',async (req: express.Request, res: express.Response) => {
+    try{
+        const { chat } = await req.body;
+        console.log(chat);
+        res.end("Chat received");
+    }catch(error){
+        res.status(404).json("error");
+    }
+})
+
 export default aiRouter;
