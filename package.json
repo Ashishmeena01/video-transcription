@@ -5,6 +5,7 @@
   "main": "src/index.ts",
   "scripts": {
     "start": " tsc && node dist/index.js",
+    "build":"prisma generate && tsc",
     "dev": "tsc && nodemon dist/index.js",
     "seed": "tsc && node dist/utils/seed-db.js"
   },
