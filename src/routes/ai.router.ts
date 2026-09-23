@@ -168,7 +168,7 @@ aiRouter.post('/chat',async (req: express.Request, res: express.Response) => {
             res.end("no message there").status(400);
         }
 
-        const response = await ai.models.generateContent({
+        const result = await ai.models.generateContent({
             model: "gemini-3.6-flash",
 
             contents: [
@@ -183,9 +183,11 @@ aiRouter.post('/chat',async (req: express.Request, res: express.Response) => {
                 },
             ],
         })
-        console.log(response.text);
+        console.log(result.text);
 
-        res.end(response.text);
+        res.json({
+            response:result.text,
+        });
     }catch(error){
         res.status(404).json("error");
     }
