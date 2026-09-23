@@ -162,19 +162,20 @@ Requirements:
 
 aiRouter.post('/chat',async (req: express.Request, res: express.Response) => {
     try{
-        const { chat } = await req.body;
+        const { message } = await req.body;
 
-        if(!chat){
+
+        if(!message){
             return res.end("no message there").status(400);
         }
 
-        console.log(chat);
+        console.log(message);
         const result = await ai.models.generateContent({
             model: "gemini-3.6-flash",
 
             contents: [
                 {
-                    text:chat,
+                    text:message,
                 },
                 {
                     text: `
