@@ -177,7 +177,8 @@ aiRouter.post('/chat',async (req: express.Request, res: express.Response) => {
                 },
                 {
                     text: `
-                    your are a chatbot you just need to response to the message of user
+                    your are a chatbot you just need to response to the message of user. response wisely
+
               `,
                 },
             ],
