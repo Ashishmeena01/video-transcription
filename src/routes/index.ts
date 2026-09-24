@@ -110,13 +110,12 @@ protectedRouter.use(
 app.use("/", publicRouter);
 app.use("/", protectedRouter);
 publicRouter.use("/api/user", userRouter);
-// protectedRouter.use("/api/ai", aiRouter);
+protectedRouter.use("/api/ai", aiRouter);
 protectedRouter.use("/api",uploadMediaRouter);
 
-publicRouter.use("/api/ai",aiRouter);
 
 protectedRouter.use("/check", (req: express.Request, res: express.Response) => {
-    res.status(201).end("Auth is smooth working well");
+    res.status(201).end("Auth is smooth working well are you ready guys");
 })
 
 
