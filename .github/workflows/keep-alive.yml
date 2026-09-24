@@ -1,4 +1,4 @@
-name: Keep Render Awakee
+name: To make the webpage alive
 
 on:
   schedule:
