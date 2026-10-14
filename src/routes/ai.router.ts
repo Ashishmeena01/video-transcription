@@ -171,7 +171,7 @@ aiRouter.post('/chat',async (req: express.Request, res: express.Response) => {
 
         console.log(message);
         const result = await ai.models.generateContent({
-            model: "gemini-3.6-flash",
+            model: "gemini-3.8-flash",
 
             contents: [
                 {
